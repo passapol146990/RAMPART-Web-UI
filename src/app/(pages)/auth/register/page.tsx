@@ -160,31 +160,6 @@ export default function RegisterPage() {
                 <p className="text-xl lg:text-2xl font-semibold text-white/90">
                   Threat Analysis Malware Platform
                 </p>
-                <p className="text-blue-200/70 text-sm lg:text-base font-medium max-w-md leading-relaxed">
-                  Advanced malware analysis powered by CAPEv2 & MobSF integration for comprehensive threat detection
-                </p>
-              </div>
-            </div>
-
-            {/* Security Features */}
-            <div className="hidden lg:flex flex-col gap-3 mt-8 max-w-md">
-              <div className="flex items-center gap-3 text-blue-200/80">
-                <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-                  <i className="fas fa-shield-alt text-cyan-400"></i>
-                </div>
-                <span className="text-sm">Enterprise-grade security analysis</span>
-              </div>
-              <div className="flex items-center gap-3 text-blue-200/80">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <i className="fas fa-bolt text-blue-400"></i>
-                </div>
-                <span className="text-sm">Real-time threat intelligence</span>
-              </div>
-              <div className="flex items-center gap-3 text-blue-200/80">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                  <i className="fas fa-virus text-purple-400"></i>
-                </div>
-                <span className="text-sm">Automated malware detection</span>
               </div>
             </div>
           </div>
@@ -196,9 +171,6 @@ export default function RegisterPage() {
                 <h2 className="text-2xl lg:text-3xl font-bold text-white mb-2">
                   Create Account
                 </h2>
-                <p className="text-blue-200/60 text-sm">
-                  Fill in your details to get started
-                </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -368,21 +340,6 @@ export default function RegisterPage() {
                   </Link>
                 </p>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-12">
-          <div className="inline-flex items-center space-x-4 text-xs text-blue-200/40 bg-white/5 backdrop-blur-sm rounded-full px-6 py-3 border border-white/10">
-            <div className="flex items-center space-x-2">
-              <i className="fas fa-shield-alt text-cyan-400"></i>
-              <span>Enterprise Grade Security</span>
-            </div>
-            <div className="w-1 h-1 bg-blue-200/20 rounded-full"></div>
-            <div className="flex items-center space-x-2">
-              <i className="fas fa-bolt text-cyan-400"></i>
-              <span>CAPEv2 & MobSF</span>
             </div>
           </div>
         </div>

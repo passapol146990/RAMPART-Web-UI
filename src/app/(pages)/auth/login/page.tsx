@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import Image from 'next/image'
 import ReCAPTCHA from "react-google-recaptcha"
+import axios from 'axios'
 
 export default function LoginPage() {
   const recaptchaRef = useRef<ReCAPTCHA>(null)
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [isVerified, setIsVerified] = useState(false)
   const [recaptchaToken, setRecaptchaToken] = useState('')
   const [error, setError] = useState('')
+  const [isshowCaptcha, setIsshowCaptcha] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,32 +29,22 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // ส่งข้อมูลไปยัง API
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          recaptchaToken,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      axios.post('/api/auth/login', {
+        email,
+        password,
+        recaptchaToken,
+      }).then((res) => {
+        console.log('Login successful:', res.data)
         // Login สำเร็จ - redirect ไปหน้า dashboard
         window.location.href = '/auth/verify-otp'
-      } else {
+      }).catch((err) => {
         // แสดง error message
-        setError(data.message || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+        setError(err.response?.data?.message || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
         // Reset reCAPTCHA
         recaptchaRef.current?.reset()
         setIsVerified(false)
         setRecaptchaToken('')
-      }
+      });
     } catch (error) {
       console.error('Login error:', error)
       setError('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง')
@@ -73,6 +65,14 @@ export default function LoginPage() {
   const handleCaptchaExpired = () => {
     setIsVerified(false)
     setRecaptchaToken('')
+  }
+
+  const handleOninputChange = () => {
+    if (!isshowCaptcha) {
+      if (email.length > 5 && password.length > 5){
+        setIsshowCaptcha(true);
+      }
+    }
   }
 
   return (
@@ -120,33 +120,8 @@ export default function LoginPage() {
                 </h1>
                 <div className="space-y-3">
                   <p className="text-xl lg:text-2xl font-semibold text-white/90">
-                    Threat Analysis Malware Platform
+                    {/* Threat Analysis Malware Platform */}
                   </p>
-                  <p className="text-blue-200/70 text-sm lg:text-base font-medium max-w-md leading-relaxed">
-                    Advanced malware analysis powered by CAPEv2 & MobSF integration for comprehensive threat detection
-                  </p>
-                </div>
-
-                {/* Security Features */}
-                <div className="hidden lg:flex flex-col gap-3 mt-8 max-w-md">
-                  <div className="flex items-center gap-3 text-blue-200/80">
-                    <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-                      <i className="fas fa-shield-alt text-cyan-400"></i>
-                    </div>
-                    <span className="text-sm">Enterprise-grade security analysis</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-blue-200/80">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                      <i className="fas fa-bolt text-blue-400"></i>
-                    </div>
-                    <span className="text-sm">Real-time threat intelligence</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-blue-200/80">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                      <i className="fas fa-virus text-purple-400"></i>
-                    </div>
-                    <span className="text-sm">Automated malware detection</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -163,7 +138,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} onInput={handleOninputChange} className="space-y-6">
                   {/* Error Message */}
                   {error && (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 backdrop-blur-sm">
@@ -177,14 +152,14 @@ export default function LoginPage() {
                   {/* Email Field */}
                   <div className="space-y-3">
                     <label htmlFor="email" className="block text-sm font-semibold text-blue-100">
-                      Email Address
+                      Username / Email Address
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-transform duration-300 group-focus-within:scale-110">
                         <i className="fas fa-envelope text-cyan-400 text-lg"></i>
                       </div>
                       <input
-                        type="email"
+                        type="text"
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -230,14 +205,16 @@ export default function LoginPage() {
                   </div>
 
                   {/* reCAPTCHA Placeholder */}
-                  <div className="flex justify-center py-2 transform hover:scale-105 transition-transform duration-200">
-                    <ReCAPTCHA
-                      sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || ""}
-                      ref={recaptchaRef}
-                      onChange={handleCaptchaChange}
-                      onExpired={handleCaptchaExpired}
-                    />
-                  </div>
+                  {isshowCaptcha && (
+                    <div className="flex justify-center py-2 transform hover:scale-105 transition-transform duration-200">
+                      <ReCAPTCHA
+                        sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || ""}
+                        ref={recaptchaRef}
+                        onChange={handleCaptchaChange}
+                        onExpired={handleCaptchaExpired}
+                      />
+                    </div>
+                  )}
 
                   {/* Login Button */}
                   <button
@@ -277,21 +254,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-          </div>
-
-          {/* Footer */}
-          <div className="text-center mt-12">
-            <div className="inline-flex items-center space-x-4 text-xs text-blue-200/40 bg-white/5 backdrop-blur-sm rounded-full px-6 py-3 border border-white/10">
-              <div className="flex items-center space-x-2">
-                <i className="fas fa-shield-alt text-cyan-400"></i>
-                <span>Enterprise Grade Security</span>
-              </div>
-              <div className="w-1 h-1 bg-blue-200/20 rounded-full"></div>
-              <div className="flex items-center space-x-2">
-                <i className="fas fa-bolt text-cyan-400"></i>
-                <span>CAPEv2 & MobSF</span>
-              </div>
-            </div>
           </div>
         </div>
 
