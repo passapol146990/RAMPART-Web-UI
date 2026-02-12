@@ -21,10 +21,10 @@ export default function LoginPage() {
     setError('')
 
     // Validate reCAPTCHA
-    if (!isVerified || !recaptchaToken) {
-      setError('กรุณายืนยัน reCAPTCHA')
-      return
-    }
+    // if (!isVerified || !recaptchaToken) {
+    //   setError('กรุณายืนยัน reCAPTCHA')
+    //   return
+    // }
 
     setIsLoading(true)
 
@@ -219,7 +219,8 @@ export default function LoginPage() {
                   {/* Login Button */}
                   <button
                     type="submit"
-                    disabled={isLoading || !isVerified}
+                    // disabled={isLoading || !isVerified}
+                    disabled={false}
                     className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white py-4 px-4 rounded-2xl font-bold hover:shadow-2xl hover:shadow-cyan-500/25 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none transition-all duration-300 flex items-center justify-center space-x-3 relative overflow-hidden group"
                   >
                     {/* Animated background */}

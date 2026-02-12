@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import axios from 'axios'
 
 export default function VerifyOtpPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
@@ -77,29 +78,23 @@ export default function VerifyOtpPage() {
     setIsLoading(true)
 
     try {
-      // ส่ง OTP ไปยัง API
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          otp: otpString,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // OTP ถูกต้อง - redirect ไปหน้า dashboard
+      const res = await axios.post('/api/auth/verify-otp', { otp: otpString })
+      const data = res.data
+      console.log('OTP verification response:', res.data)
+      if (data.success) {
         window.location.href = '/dashboard'
       } else {
         setError(data.message || 'รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง')
-        // Clear OTP on error
+        if (data.message.includes("expired")) {
+          setTimeout(() => {
+            window.location.reload()
+          }, 3000);
+        }
         setOtp(['', '', '', '', '', ''])
         inputRefs.current[0]?.focus()
       }
     } catch (error) {
+      window.location.reload()
       console.error('OTP verification error:', error)
       setError('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง')
     } finally {

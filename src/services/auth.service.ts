@@ -18,3 +18,20 @@ export async function loginService(req:LoginParams){
     }
     
 }
+
+export async function loginServiceConfirm(token:string, otp:string, userAgent:string | null, ip:string | null){
+    try{
+        const res = await axios.post(`${URL}/api/login/confirm`,{
+            otp,token
+        },{
+            headers:{
+                "User-Agent":userAgent,
+                "x-client-ip": ip,
+            }
+        })
+        return res.data;
+    }catch(error){
+        return {success:false, message:"Connect Server Error!!!"}
+    }
+}
+
