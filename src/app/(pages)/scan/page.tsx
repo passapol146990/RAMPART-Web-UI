@@ -1,32 +1,26 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import axios from 'axios'
 import NavbarComponent from '@/components/NavbarComponent'
 
 interface UploadedFile {
-  id: string
   name: string
   size: number
-  type: string
   status: 'uploading' | 'analyzing' | 'completed' | 'failed'
   progress: number
-  uploadedFileId?: string
+  taskId?: string
   error?: string
-  analysisResult?: {
-    riskLevel: 'low' | 'medium' | 'high'
-    malwareType?: string
-    score: number
-  }
 }
 
 export default function ScanFilesPage() {
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  const [analysisMode, setAnalysisMode] = useState<'quick' | 'deep'>('quick')
+  const [file, setFile] = useState<UploadedFile | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
   // =============================
-  // 1️⃣ GET ACCESS TOKEN + URI
+  // GET ACCESS TOKEN
   // =============================
   async function getAccessToken(): Promise<{ token: string; uri: string }> {
     const res = await fetch('/api/auth/access', {
@@ -37,9 +31,8 @@ export default function ScanFilesPage() {
     if (!res.ok) throw new Error('Unauthorized')
 
     const data = await res.json()
-
-    if (!data.token || !data.uri) {
-      throw new Error('Invalid auth response')
+    if (!data.success) {
+      window.location.reload()
     }
 
     return {
@@ -49,33 +42,25 @@ export default function ScanFilesPage() {
   }
 
   // =============================
-  // 2️⃣ UPLOAD FILE (WITH PROGRESS)
+  // UPLOAD FILE
   // =============================
-  async function uploadFile(file: File, fileId: string) {
+  async function uploadFile(selectedFile: File) {
     try {
       const { token, uri } = await getAccessToken()
+      console.log(token, uri)
 
       const formData = new FormData()
-      formData.append('file', file)
-      formData.append('analysis_mode', analysisMode)
+      formData.append('file', selectedFile)
 
-      console.log("Uploading to:", `${uri}/api/analy/upload`)
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `${uri}/api/analy/upload`)
-
       xhr.setRequestHeader('X-Access-Token', token)
 
-      // Progress tracking
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100)
-
-          setUploadedFiles(prev =>
-            prev.map(f =>
-              f.id === fileId
-                ? { ...f, progress: percent }
-                : f
-            )
+          setFile(prev =>
+            prev ? { ...prev, progress: percent } : null
           )
         }
       }
@@ -83,30 +68,19 @@ export default function ScanFilesPage() {
       xhr.onload = () => {
         if (xhr.status === 200) {
           const response = JSON.parse(xhr.responseText)
-          console.log(response)
-//           {
-//   "success": true,
-//   "message": "File already uploaded",
-//   "file_id": "4696320f8515484d12463c4f03abb54042545e3b6f0c9c5df66bc8c5a2656ddf",
-//   "filename": "4696320f8515484d12463c4f03abb54042545e3b6f0c9c5df66bc8c5a2656ddf.zip",
-//   "task_id": "9ee3a42e-482d-4ec9-a917-1af6abb51029",
-//   "status": "processing"
-// }
 
-          setUploadedFiles(prev =>
-            prev.map(f =>
-              f.id === fileId
-                ? {
-                    ...f,
-                    status: 'analyzing',
-                    progress: 100,
-                    uploadedFileId: response.file_id
-                  }
-                : f
-            )
+          setFile(prev =>
+            prev
+              ? {
+                ...prev,
+                status: 'analyzing',
+                progress: 100,
+                taskId: response.task_id
+              }
+              : null
           )
 
-          // pollAnalysisStatus(response.file_id, fileId, uri, token)
+          pollAnalysisStatus(response.task_id, uri, token)
         } else {
           throw new Error('Upload failed')
         }
@@ -119,163 +93,181 @@ export default function ScanFilesPage() {
       xhr.send(formData)
 
     } catch (error) {
-      setUploadedFiles(prev =>
-        prev.map(f =>
-          f.id === fileId
-            ? {
-                ...f,
-                status: 'failed',
-                error: error instanceof Error ? error.message : 'Upload failed'
-              }
-            : f
-        )
+      setFile(prev =>
+        prev
+          ? {
+            ...prev,
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Upload failed'
+          }
+          : null
       )
     }
   }
 
   // =============================
-  // 3️⃣ POLL ANALYSIS STATUS
+  // POLL REPORT STATUS
   // =============================
-  async function pollAnalysisStatus(
-    uploadedFileId: string,
-    fileId: string,
-    uri: string,
-    token: string
-  ) {
-    // const interval = setInterval(async () => {
-    //   try {
-    //     const res = await fetch(`${uri}/api/analy/status/${uploadedFileId}`, {
-    //       headers: {
-    //         'X-Access-Token': token
-    //       }
-    //     })
+  function pollAnalysisStatus(taskId: string, uri: string, token: string) {
+    const interval = setInterval(async () => {
+      try {
+        const response = await axios.post(
+          `${uri}/api/analy/report`,
+          { task_id: taskId },
+          { headers: { 'X-Access-Token': token } }
+        )
 
-    //     if (!res.ok) return
+        const res = response.data
+        console.log(res)
 
-    //     const data = await res.json()
+        if (res.success) {
+          if (res.status === 'success') {
+            clearInterval(interval)
 
-    //     if (data.status === 'completed') {
-    //       clearInterval(interval)
+            setFile(prev =>
+              prev ? { ...prev, status: 'completed' } : null
+            )
+          }
 
-    //       setUploadedFiles(prev =>
-    //         prev.map(f =>
-    //           f.id === fileId
-    //             ? {
-    //                 ...f,
-    //                 status: 'completed',
-    //                 analysisResult: data.result
-    //               }
-    //             : f
-    //         )
-    //       )
-    //     }
+          if (res.status === 'failed') {
+            clearInterval(interval)
 
-    //   } catch (err) {
-    //     clearInterval(interval)
-    //   }
-    // }, 5000) // poll ทุก 5 วิ
+            setFile(prev =>
+              prev
+                ? {
+                  ...prev,
+                  status: 'failed',
+                  error: 'การวิเคราะห์ล้มเหลว'
+                }
+                : null
+            )
+          }
+        }
+
+      } catch {
+        clearInterval(interval)
+      }
+    }, 5000)
   }
 
   // =============================
-  // HANDLE FILES
+  // HANDLE FILE INPUT
   // =============================
-  const handleFiles = (files: File[]) => {
-    const maxSize = 1024 * 1024 * 1024 // 1GB
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
 
-    const validFiles = files.filter(file => {
-      if (file.size > maxSize) {
-        alert(`ไฟล์ ${file.name} ใหญ่เกิน 1GB`)
-        return false
-      }
-      return true
-    })
+    const maxSize = 1024 * 1024 * 1024
+    if (selectedFile.size > maxSize) {
+      alert('ไฟล์ใหญ่เกิน 1GB')
+      return
+    }
 
-    const newFiles: UploadedFile[] = validFiles.map(file => ({
-      id: `${Date.now()}-${Math.random()}`,
-      name: file.name,
-      size: file.size,
-      type: file.name.split('.').pop() || 'unknown',
+    setFile({
+      name: selectedFile.name,
+      size: selectedFile.size,
       status: 'uploading',
       progress: 0
-    }))
-
-    setUploadedFiles(prev => [...prev, ...newFiles])
-
-    newFiles.forEach((fileObj, index) => {
-      uploadFile(validFiles[index], fileObj.id)
     })
-  }
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    handleFiles(files)
+    uploadFile(selectedFile)
   }
-
-  // =============================
-  // UI BELOW (เหมือนเดิมเกือบทั้งหมด)
-  // =============================
 
   return (
     <div className="min-h-screen bg-slate-900 p-6">
       <NavbarComponent />
 
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
 
-        <div className="bg-white/5 p-6 rounded-xl">
-          <h3 className="text-white mb-4">โหมดการวิเคราะห์</h3>
-
-          <button
-            onClick={() => setAnalysisMode('quick')}
-            className="mr-4 text-cyan-400"
-          >
-            Quick
-          </button>
-
-          <button
-            onClick={() => setAnalysisMode('deep')}
-            className="text-blue-400"
-          >
-            Deep
-          </button>
-        </div>
-
-        <div className="bg-white/5 p-6 rounded-xl">
+        {/* Upload Card */}
+        <div className="bg-white/5 p-6 rounded-xl text-center">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-cyan-500 px-6 py-3 rounded text-white"
+            className="bg-cyan-500 hover:bg-cyan-600 px-6 py-3 rounded text-white font-medium transition"
           >
-            เลือกไฟล์
+            เลือกไฟล์เพื่อสแกน
           </button>
 
           <input
             type="file"
-            multiple
             ref={fileInputRef}
             onChange={handleFileInput}
             className="hidden"
           />
         </div>
 
-        {uploadedFiles.map(file => (
-          <div key={file.id} className="bg-white/5 p-4 rounded">
-            <div className="text-white">{file.name}</div>
-            <div className="text-sm text-gray-400">{file.status}</div>
+        {/* File Status */}
+        {file && (
+          <div className="bg-white/5 p-6 rounded-xl space-y-4 border border-white/10">
 
-            <div className="w-full bg-gray-700 h-2 mt-2 rounded">
-              <div
-                className="bg-cyan-500 h-2 rounded"
-                style={{ width: `${file.progress}%` }}
-              />
+            {/* File Name */}
+            <div>
+              <div className="text-white font-medium">{file.name}</div>
+              <div className="text-xs text-blue-200/50">
+                {(file.size / 1024 / 1024).toFixed(2)} MB
+              </div>
             </div>
 
-            {file.analysisResult && (
-              <div className="text-green-400 mt-2">
-                Risk: {file.analysisResult.riskLevel} |
-                Score: {file.analysisResult.score}
+            {/* Upload Progress */}
+            {file.status === 'uploading' && (
+              <>
+                <div className="text-sm text-cyan-400">กำลังอัปโหลด...</div>
+                <div className="w-full bg-gray-700 h-2 rounded">
+                  <div
+                    className="bg-cyan-500 h-2 rounded transition-all"
+                    style={{ width: `${file.progress}%` }}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Processing Spinner */}
+            {file.status === 'analyzing' && (
+              <div className="flex items-center space-x-3 text-yellow-400">
+                <div className="w-5 h-5 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm">
+                  กำลังวิเคราะห์ไฟล์ กรุณารอสักครู่...
+                </span>
+              </div>
+            )}
+
+            {/* Completed */}
+            {file.status === 'completed' && file.taskId && (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 text-green-400">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-xs">
+                    ✓
+                  </div>
+                  <span>วิเคราะห์เสร็จสิ้น</span>
+                </div>
+
+                <button
+                  onClick={() => router.push(`/reports/${file.taskId}`)}
+                  className="w-full bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white transition"
+                >
+                  ดูผลการวิเคราะห์
+                </button>
+              </div>
+            )}
+
+            {/* Failed Alert */}
+            {file.status === 'failed' && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-red-400 mb-1">
+                  <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs">
+                    !
+                  </div>
+                  <span className="font-medium">การวิเคราะห์ล้มเหลว</span>
+                </div>
+                <div className="text-sm text-red-300">
+                  {file.error || 'กรุณาลองใหม่อีกครั้ง'}
+                </div>
               </div>
             )}
           </div>
-        ))}
+        )}
+
+
       </div>
     </div>
   )

@@ -37,7 +37,8 @@ export function proxy(request: NextRequest) {
     }
     if (
         pathname.startsWith("/home") ||
-        pathname.startsWith("/dashboard")
+        pathname.startsWith("/dashboard") ||
+        pathname.startsWith("/scan")
     ) {
         if (!token) {
             return NextResponse.redirect(new URL("/auth/login", request.url));
@@ -83,5 +84,6 @@ export const config = {
         "/dashboard/:path*",
         "/auth/login",
         "/auth/register",
+        "/scan"
     ],
 };
